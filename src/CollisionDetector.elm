@@ -78,32 +78,30 @@ pickConfig (CollisionDetector config) =
 iterateCollisions : ( scope, Cmd msg ) -> Dict String (Collidable scope msg) -> ( scope, Cmd msg )
 iterateCollisions ( scope, cmd ) collidables =
     case Dict.values collidables of
-        x1 :: xs ->
+        -- We need at least 2 elements to verify collisions
+        x1 :: x2 :: xs ->
             List.foldl
                 (collisionMapper x1)
                 ( scope, cmd )
-                xs
-                |> verifyCollision x1 xs
+                (x2 :: xs)
+                |> processNext x2 xs
 
         _ ->
             ( scope, cmd )
 
 
-verifyCollision : Collidable scope msg -> List (Collidable scope msg) -> ( scope, Cmd msg ) -> ( scope, Cmd msg )
-verifyCollision collidable remaining ( scope, cmd ) =
+processNext : Collidable scope msg -> List (Collidable scope msg) -> ( scope, Cmd msg ) -> ( scope, Cmd msg )
+processNext collidable remaining ( scope, cmd ) =
     case remaining of
-        [] ->
-            ( scope, cmd )
-
-        _ :: [] ->
-            ( scope, cmd )
-
         x :: xs ->
             List.foldl
                 (collisionMapper collidable)
                 ( scope, cmd )
                 remaining
-                |> verifyCollision x xs
+                |> processNext x xs
+
+        [] ->
+            ( scope, cmd )
 
 
 collisionMapper : Collidable scope msg -> Collidable scope msg -> ( scope, Cmd msg ) -> ( scope, Cmd msg )

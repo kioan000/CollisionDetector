@@ -103,8 +103,8 @@ view model =
                 , path (collidableTypeToId Path2) model.collisionDetectorScope.path2Attributes
                 , box2 model.collisionDetectorScope.square2Attributes
                 , path (collidableTypeToId Path3) model.collisionDetectorScope.path3Attributes
-                , path (collidableTypeToId Path4) model.collisionDetectorScope.path3Attributes
-                , path (collidableTypeToId Path5) model.collisionDetectorScope.path3Attributes
+                , path (collidableTypeToId Path4) model.collisionDetectorScope.path4Attributes
+                , path (collidableTypeToId Path5) model.collisionDetectorScope.path5Attributes
                 ]
             ]
         ]
@@ -176,8 +176,8 @@ update msg model =
                     , Task.attempt (resultToUpdateCollidablePosition Path1) (Dom.getElement (collidableTypeToId Path1))
                     , Task.attempt (resultToUpdateCollidablePosition Path2) (Dom.getElement (collidableTypeToId Path2))
                     , Task.attempt (resultToUpdateCollidablePosition Path3) (Dom.getElement (collidableTypeToId Path3))
-                    , Task.attempt (resultToUpdateCollidablePosition Path3) (Dom.getElement (collidableTypeToId Path4))
-                    , Task.attempt (resultToUpdateCollidablePosition Path3) (Dom.getElement (collidableTypeToId Path5))
+                    , Task.attempt (resultToUpdateCollidablePosition Path4) (Dom.getElement (collidableTypeToId Path4))
+                    , Task.attempt (resultToUpdateCollidablePosition Path5) (Dom.getElement (collidableTypeToId Path5))
                     ]
                 |> CollisionDetector.cycleWithCmds model.collisionDetector
 
@@ -187,13 +187,6 @@ update msg model =
                 |> UtilsUpdate.withCmds []
 
         UpdateCollidablePosition collidableType x y ->
-            let
-                _ =
-                    Debug.log "update position " collidableType
-
-                _ =
-                    Debug.log "update position y " y
-            in
             model
                 |> updateCollisionDetector (CollisionDetector.updatePosition (collidableTypeToId collidableType) x y)
                 |> UtilsUpdate.withoutCmds
@@ -258,7 +251,7 @@ square2Collision me collided scope =
 path1Collision : Collidable CollisionDetectorScope Msg -> Collidable CollisionDetectorScope Msg -> CollisionDetectorScope -> ( CollisionDetectorScope, Cmd msg )
 path1Collision me collided scope =
     { scope
-        | path1Attributes = [ style "opacity" "50%" ]
+        | path1Attributes = [ style "opacity" "20%" ]
         , message = "path1 collided"
     }
         |> UtilsUpdate.withoutCmds
@@ -267,7 +260,7 @@ path1Collision me collided scope =
 path2Collision : Collidable CollisionDetectorScope Msg -> Collidable CollisionDetectorScope Msg -> CollisionDetectorScope -> ( CollisionDetectorScope, Cmd msg )
 path2Collision me collided scope =
     { scope
-        | path2Attributes = [ style "opacity" "50%" ]
+        | path2Attributes = [ style "opacity" "20%" ]
         , message = "path2 collided"
     }
         |> UtilsUpdate.withoutCmds
@@ -276,7 +269,7 @@ path2Collision me collided scope =
 path3Collision : Collidable CollisionDetectorScope Msg -> Collidable CollisionDetectorScope Msg -> CollisionDetectorScope -> ( CollisionDetectorScope, Cmd msg )
 path3Collision me collided scope =
     { scope
-        | path3Attributes = [ style "opacity" "50%" ]
+        | path3Attributes = [ style "opacity" "20%" ]
         , message = "path3 collided"
     }
         |> UtilsUpdate.withoutCmds
@@ -285,7 +278,7 @@ path3Collision me collided scope =
 path4Collision : Collidable CollisionDetectorScope Msg -> Collidable CollisionDetectorScope Msg -> CollisionDetectorScope -> ( CollisionDetectorScope, Cmd msg )
 path4Collision me collided scope =
     { scope
-        | path4Attributes = [ style "opacity" "50%" ]
+        | path4Attributes = [ style "opacity" "20%" ]
         , message = "path4 collided"
     }
         |> UtilsUpdate.withoutCmds
@@ -294,7 +287,7 @@ path4Collision me collided scope =
 path5Collision : Collidable CollisionDetectorScope Msg -> Collidable CollisionDetectorScope Msg -> CollisionDetectorScope -> ( CollisionDetectorScope, Cmd msg )
 path5Collision me collided scope =
     { scope
-        | path5Attributes = [ style "opacity" "50%" ]
+        | path5Attributes = [ style "opacity" "20%" ]
         , message = "path5 collided"
     }
         |> UtilsUpdate.withoutCmds
