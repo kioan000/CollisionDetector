@@ -1,4 +1,4 @@
-module Utils.QuadTree.Boundary exposing (Boundary, containsPoint, create, intersects)
+module Utils.QuadTree.Boundary exposing (Boundary, bottomLeftSplit, bottomRightSplit, containsPoint, create, intersects, topLeftSplit, topRightSplit)
 
 import Utils.QuadTree.Point as Point exposing (Point)
 
@@ -35,33 +35,65 @@ containsPoint point (Boundary { center, halfDimension }) =
     inX && inY
 
 
-topLeft : Boundary -> Point
-topLeft (Boundary { center, halfDimension }) =
+topLeftCorner : Boundary -> Point
+topLeftCorner (Boundary { center, halfDimension }) =
     Point.create (Point.getX center - halfDimension) (Point.getY center - halfDimension)
 
 
-topRight : Boundary -> Point
-topRight (Boundary { center, halfDimension }) =
+topRightCorner : Boundary -> Point
+topRightCorner (Boundary { center, halfDimension }) =
     Point.create (Point.getX center + halfDimension) (Point.getY center + halfDimension)
 
 
-bottomLeft : Boundary -> Point
-bottomLeft (Boundary { center, halfDimension }) =
+bottomLeftCorner : Boundary -> Point
+bottomLeftCorner (Boundary { center, halfDimension }) =
     Point.create (Point.getX center - halfDimension) (Point.getY center - halfDimension)
 
 
-bottomRight : Boundary -> Point
-bottomRight (Boundary { center, halfDimension }) =
+bottomRightCorner : Boundary -> Point
+bottomRightCorner (Boundary { center, halfDimension }) =
     Point.create (Point.getX center + halfDimension) (Point.getY center - halfDimension)
+
+
+topLeftSplit : Boundary -> Boundary
+topLeftSplit (Boundary { center, halfDimension }) =
+    Boundary
+        { center = Point.create (Point.getX center - halfDimension / 2) (Point.getY center + halfDimension / 2)
+        , halfDimension = halfDimension / 2
+        }
+
+
+topRightSplit : Boundary -> Boundary
+topRightSplit (Boundary { center, halfDimension }) =
+    Boundary
+        { center = Point.create (Point.getX center + halfDimension / 2) (Point.getY center + halfDimension / 2)
+        , halfDimension = halfDimension / 2
+        }
+
+
+bottomLeftSplit : Boundary -> Boundary
+bottomLeftSplit (Boundary { center, halfDimension }) =
+    Boundary
+        { center = Point.create (Point.getX center - halfDimension / 2) (Point.getY center - halfDimension / 2)
+        , halfDimension = halfDimension / 2
+        }
+
+
+bottomRightSplit : Boundary -> Boundary
+bottomRightSplit (Boundary { center, halfDimension }) =
+    Boundary
+        { center = Point.create (Point.getX center + halfDimension / 2) (Point.getY center - halfDimension / 2)
+        , halfDimension = halfDimension / 2
+        }
 
 
 intersects : Boundary -> Boundary -> Bool
 intersects boundary1 boundary2 =
-    containsPoint (topLeft boundary1) boundary2
-        |> (||) (containsPoint (topLeft boundary2) boundary1)
-        |> (||) (containsPoint (topRight boundary1) boundary2)
-        |> (||) (containsPoint (topRight boundary2) boundary1)
-        |> (||) (containsPoint (bottomLeft boundary1) boundary2)
-        |> (||) (containsPoint (bottomLeft boundary2) boundary1)
-        |> (||) (containsPoint (bottomRight boundary1) boundary2)
-        |> (||) (containsPoint (bottomRight boundary2) boundary1)
+    containsPoint (topLeftCorner boundary1) boundary2
+        |> (||) (containsPoint (topLeftCorner boundary2) boundary1)
+        |> (||) (containsPoint (topRightCorner boundary1) boundary2)
+        |> (||) (containsPoint (topRightCorner boundary2) boundary1)
+        |> (||) (containsPoint (bottomLeftCorner boundary1) boundary2)
+        |> (||) (containsPoint (bottomLeftCorner boundary2) boundary1)
+        |> (||) (containsPoint (bottomRightCorner boundary1) boundary2)
+        |> (||) (containsPoint (bottomRightCorner boundary2) boundary1)
