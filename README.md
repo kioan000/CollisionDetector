@@ -1,4 +1,4 @@
-# CollisionDetector
+# Collision Detector
 
 A smart tool that helps you track DOM element collisions in Elm and trigger updates in model and side effects.
 
