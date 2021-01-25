@@ -1,4 +1,4 @@
-module Example exposing (main)
+module Example.Example exposing (main)
 
 import Browser exposing (Document)
 import Browser.Dom as Dom

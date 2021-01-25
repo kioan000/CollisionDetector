@@ -1,4 +1,4 @@
-module Utils.Update exposing (..)
+module Utils.Update exposing (addCmd, withCmds, withoutCmds)
 
 
 addCmd : Cmd msg -> ( model, Cmd msg ) -> ( model, Cmd msg )
