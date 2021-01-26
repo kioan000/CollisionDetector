@@ -1,26 +1,25 @@
-module Collidable exposing
+module Collidable2 exposing
     ( Collidable
-    , CollisionHandler
+    , CollisionEvent
     , areCollided
-    , create
-    , onCollision
-    , pickCollisionHandler
+    , collidable
+    , pickCollisionEvent
     , pickId
-    , updateHeight
-    , updatePosition
-    , updateWidth
+    , setHeight
+    , setPosition
+    , setWidth
     )
 
 
-type Collidable scope msg
-    = Collidable (Config scope msg)
+type Collidable msg
+    = Collidable (Config msg)
 
 
-type alias Config scope msg =
+type alias Config msg =
     { id : String
     , boundingBox : BoundingBox
     , collisionBoxType : CollisionBoxType
-    , collisionHandler : Maybe (CollisionHandler scope msg)
+    , collisionEvent : Maybe (CollisionEvent msg)
     , collidesWith : CollidesWithOption
     , height : Float
     , width : Float
@@ -30,8 +29,8 @@ type alias Config scope msg =
 
 {-| Type alias for collision handler function.
 -}
-type alias CollisionHandler scope msg =
-    Collidable scope msg -> Collidable scope msg -> scope -> ( scope, Cmd msg )
+type alias CollisionEvent msg =
+    Collidable msg -> Collidable msg -> msg
 
 
 type CoordinatesUnit
@@ -60,13 +59,13 @@ type CollisionBoxType
     = Squared
 
 
-create : String -> Float -> Float -> Float -> Float -> Collidable scope msg
-create id x y height width =
+collidable : String -> Float -> Float -> Float -> Float -> Maybe (CollisionEvent msg) -> Collidable msg
+collidable id x y height width event =
     Collidable
         { id = id
         , boundingBox = createBoundingBox x y height width
         , collisionBoxType = Squared
-        , collisionHandler = Nothing
+        , collisionEvent = event
         , collidesWith = All
         , height = height
         , width = width
@@ -74,24 +73,16 @@ create id x y height width =
         }
 
 
-onCollision : CollisionHandler scope msg -> Collidable scope msg -> Collidable scope msg
-onCollision collisionEvent (Collidable config) =
-    Collidable
-        { config
-            | collisionHandler = Just collisionEvent
-        }
-
-
-updatePosition : Float -> Float -> Collidable scope msg -> Collidable scope msg
-updatePosition x y (Collidable config) =
+setPosition : Float -> Float -> Collidable msg -> Collidable msg
+setPosition x y (Collidable config) =
     Collidable
         { config
             | boundingBox = createBoundingBox x y config.height config.width
         }
 
 
-updateHeight : Float -> Collidable scope msg -> Collidable scope msg
-updateHeight height (Collidable config) =
+setHeight : Float -> Collidable msg -> Collidable msg
+setHeight height (Collidable config) =
     Collidable
         { config
             | boundingBox = createBoundingBox config.boundingBox.topLeft.x config.boundingBox.topLeft.y height config.width
@@ -99,8 +90,8 @@ updateHeight height (Collidable config) =
         }
 
 
-updateWidth : Float -> Collidable scope msg -> Collidable scope msg
-updateWidth width (Collidable config) =
+setWidth : Float -> Collidable msg -> Collidable msg
+setWidth width (Collidable config) =
     Collidable
         { config
             | boundingBox = createBoundingBox config.boundingBox.topLeft.x config.boundingBox.topLeft.y config.height width
@@ -117,7 +108,7 @@ createBoundingBox x y height width =
     }
 
 
-areCollided : Collidable scope msg -> Collidable scope msg -> Bool
+areCollided : Collidable msg -> Collidable msg -> Bool
 areCollided (Collidable c1) (Collidable c2) =
     let
         c1Xs =
@@ -181,11 +172,11 @@ areCollided (Collidable c1) (Collidable c2) =
     xIntersection && yIntersection
 
 
-pickId : Collidable scope msg -> String
+pickId : Collidable msg -> String
 pickId (Collidable config) =
     config.id
 
 
-pickCollisionHandler : Collidable scope msg -> Maybe (CollisionHandler scope msg)
-pickCollisionHandler (Collidable config) =
-    config.collisionHandler
+pickCollisionEvent : Collidable msg -> Maybe (CollisionEvent msg)
+pickCollisionEvent (Collidable config) =
+    config.collisionEvent
