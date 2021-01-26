@@ -40,7 +40,7 @@ view model =
     { title = "Example"
     , body =
         [ div [ style "height" "100vh", style "overflow" "scroll", style "position" "relative", onScroll (CollisionDetector.tickEvent model.collisionDetector) ]
-            [ div [ style "display" "flex", style "flex-flow" "column", style "min-height" "300vh" ]
+            [ div [ style "display" "flex", style "flex-flow" "column", style "min-height" "300vh", style "padding-top" "200px" ]
                 [ h1 [ style "position" "fixed", style "left" "0", style "top" "0" ] [ text model.message ]
                 , square1
                 , path "path1" []
