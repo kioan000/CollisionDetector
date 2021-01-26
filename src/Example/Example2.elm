@@ -135,10 +135,10 @@ init : () -> ( Model, Cmd Msg )
 init _ =
     initialModel
         |> UtilsUpdate.withCmdsMap
-            [ .collisionDetector >> CollisionDetector.addCollidable "square1" Nothing
+            [ .collisionDetector >> CollisionDetector.addCollidable "square1" (Just SquareCollision)
             , .collisionDetector >> CollisionDetector.addCollidable "path1" Nothing
             , .collisionDetector >> CollisionDetector.addCollidable "path2" Nothing
-            , .collisionDetector >> CollisionDetector.addCollidable "square2" (Just SquareCollision)
+            , .collisionDetector >> CollisionDetector.addCollidable "square2" Nothing
             , .collisionDetector >> CollisionDetector.addCollidable "path3" Nothing
             , .collisionDetector >> CollisionDetector.addCollidable "path4" Nothing
             , .collisionDetector >> CollisionDetector.addCollidable "path5" Nothing

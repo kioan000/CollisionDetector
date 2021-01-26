@@ -94,7 +94,9 @@ update msg model =
                         >> Cmd.batch
                     , .collisionDetector
                         >> pickCollidables
-                        >> findCollisions []
+                        -->> Debug.log "collidables: "
+                        >> findCollisions
+                        -->> Debug.log "collisions: "
                         >> List.map emitCollision
                         >> Cmd.batch
                     ]
@@ -110,17 +112,20 @@ updatePosition id x y (CollisionDetector config) =
     CollisionDetector { config | elementsThree = Dict.update id (Maybe.map (Collidable.setPosition x y)) config.elementsThree }
 
 
-findCollisions : List ( Collidable msg, Collidable msg ) -> List (Collidable msg) -> List ( Collidable msg, Collidable msg )
-findCollisions acc cD =
+findCollisions : List (Collidable msg) -> List ( Collidable msg, Collidable msg )
+findCollisions cD =
     case cD of
         x1 :: x2 :: xs ->
             if Collidable.areCollided x1 x2 then
-                List.append
-                    (findCollisions (( x1, x2 ) :: acc) (x1 :: xs))
-                    (findCollisions [] (x2 :: xs))
+                ( x1, x2 )
+                    :: List.append
+                        (findCollisions (x1 :: xs))
+                        (findCollisions (x2 :: xs))
 
             else
-                findCollisions acc (x2 :: xs)
+                List.append
+                    (findCollisions (x1 :: xs))
+                    (findCollisions (x2 :: xs))
 
         _ ->
             []
