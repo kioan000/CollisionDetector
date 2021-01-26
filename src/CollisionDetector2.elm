@@ -65,7 +65,7 @@ insertCollidable collidable (CollisionDetector config) =
         }
 
 
-{-| Add this subscription to your app if you want to emit tick event at each animation frame.
+{-| Add this subscription to your app if you want to emit tick event at 60fps accordingly with browser repaint cycle.
 
   - Don't use with explicit tickEvent handling
 

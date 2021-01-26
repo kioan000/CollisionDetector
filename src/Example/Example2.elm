@@ -105,6 +105,7 @@ path idValue attributes =
         []
 
 
+subscriptions : Model -> Sub Msg
 subscriptions model =
     Sub.batch []
 
