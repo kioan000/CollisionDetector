@@ -34,8 +34,8 @@ type alias CDConfig msg =
 
 
 type Msg msg
-    = ElementUpdated String Float Float Float Float
-    | AddElement String Float Float Float Float (Maybe (Collidable.CollisionEvent msg))
+    = ElementUpdated String Dom.Element
+    | AddElement String Dom.Element (Maybe (Collidable.CollisionEvent msg))
     | Tick
 
 
@@ -85,9 +85,9 @@ tickOnAnimationFrame =
 update : Msg msg -> HostModel hostModel msg -> ( HostModel hostModel msg, Cmd msg )
 update msg model =
     case msg of
-        ElementUpdated id x y height width ->
+        ElementUpdated id element ->
             model
-                |> updateHostModel (updatePosition id (Point.point x y) height width)
+                |> updateHostModel (updatePosition id (Point.point element.element.x element.element.y) element.element.height element.element.width)
                 |> PH.withoutCmds
 
         Tick ->
@@ -106,9 +106,9 @@ update msg model =
                         >> Cmd.batch
                     ]
 
-        AddElement id x y height width collisionHandler ->
+        AddElement id element collisionHandler ->
             model
-                |> updateHostModel (insertCollidable (Collidable.collidable id (Point.point x y) height width collisionHandler))
+                |> updateHostModel (insertCollidable (Collidable.collidable id (Point.point element.element.x element.element.y) element.element.height element.element.width collisionHandler))
                 |> PH.withoutCmds
 
 
@@ -191,7 +191,7 @@ updateElementOrError : (Msg msg -> msg) -> (Dom.Error -> msg) -> String -> Resul
 updateElementOrError internalMsgTagger errorTagger id result =
     case result of
         Result.Ok element ->
-            ElementUpdated id element.element.x element.element.y element.element.height element.element.width
+            ElementUpdated id element
                 |> internalMsgTagger
 
         Result.Err domNotFoundErr ->
@@ -203,7 +203,7 @@ addElementOrError : Maybe (Collidable.CollisionEvent msg) -> (Msg msg -> msg) ->
 addElementOrError collisionEvent internalMsgTagger errorTagger id result =
     case result of
         Result.Ok element ->
-            AddElement id element.element.x element.element.y element.element.height element.element.width collisionEvent
+            AddElement id element collisionEvent
                 |> internalMsgTagger
 
         Result.Err domNotFoundErr ->

@@ -18,8 +18,6 @@ type Msg
     = SquareCollision (Collidable Msg) (Collidable Msg)
     | CollisionDetectorMsg (CollisionDetector.Msg Msg)
     | CollisionDetectorError Dom.Error
-    | Track (Result Dom.Error Dom.Element)
-    | Tick
 
 
 type alias Model =
@@ -48,17 +46,15 @@ view : Model -> Document Msg
 view model =
     { title = "Example"
     , body =
-        [ div [ style "height" "100vh", style "overflow" "scroll", style "position" "relative", onScroll Tick ]
+        [ div [ style "height" "100vh", style "overflow" "scroll", style "position" "relative", onScroll (CollisionDetector.tickEvent model.collisionDetector) ]
             [ div [ style "display" "flex", style "flex-flow" "column", style "min-height" "300vh", style "padding-top" "200px" ]
                 [ h1 [ style "position" "fixed", style "left" "0", style "top" "0" ] [ text model.message ]
                 , square1
-
-                --, model.collisionDetector
-                --  |> CollisionDetector.viewBoundingBox "square1"
+                , model.collisionDetector
+                    |> CollisionDetector.viewBoundingBox "square1"
                 , path "path1" []
-
-                --, model.collisionDetector
-                -- |> CollisionDetector.viewBoundingBox "path1"
+                , model.collisionDetector
+                    |> CollisionDetector.viewBoundingBox "path1"
                 , path "path2" []
                 , box2 model.attrs
                 , path "path3" []
@@ -141,22 +137,6 @@ update msg model =
             model
                 |> UtilsUpdate.withoutCmds
 
-        Track (Result.Err _) ->
-            model
-                |> setMessage "Error"
-                |> UtilsUpdate.withoutCmds
-
-        Track (Result.Ok element) ->
-            model
-                |> setMessage ("(x,y): (" ++ String.fromFloat element.element.x ++ "," ++ String.fromFloat element.element.y ++ ")")
-                |> UtilsUpdate.withoutCmds
-
-        Tick ->
-            model
-                |> UtilsUpdate.withCmds
-                    [ Task.attempt Track (Dom.getElement "square1")
-                    ]
-
 
 setMessage : String -> Model -> Model
 setMessage msg model =
@@ -166,15 +146,14 @@ setMessage msg model =
 init : () -> ( Model, Cmd Msg )
 init _ =
     initialModel
-        |> UtilsUpdate.withCmds
-            [ --.collisionDetector >> CollisionDetector.addCollidable "square1" Nothing
-              --, .collisionDetector >> CollisionDetector.addCollidable "path1" Nothing
-              --, .collisionDetector >> CollisionDetector.addCollidable "path2" Nothing
-              --, .collisionDetector >> CollisionDetector.addCollidable "square2" Nothing
-              --, .collisionDetector >> CollisionDetector.addCollidable "path3" Nothing
-              --, .collisionDetector >> CollisionDetector.addCollidable "path4" Nothing
-              --, .collisionDetector >> CollisionDetector.addCollidable "path5" Nothing
-              Task.attempt Track (Dom.getElement "square1")
+        |> UtilsUpdate.withCmdsMap
+            [ .collisionDetector >> CollisionDetector.addCollidable "square1" (Just SquareCollision)
+            , .collisionDetector >> CollisionDetector.addCollidable "path1" Nothing
+            , .collisionDetector >> CollisionDetector.addCollidable "path2" Nothing
+            , .collisionDetector >> CollisionDetector.addCollidable "square2" Nothing
+            , .collisionDetector >> CollisionDetector.addCollidable "path3" Nothing
+            , .collisionDetector >> CollisionDetector.addCollidable "path4" Nothing
+            , .collisionDetector >> CollisionDetector.addCollidable "path5" Nothing
             ]
 
 

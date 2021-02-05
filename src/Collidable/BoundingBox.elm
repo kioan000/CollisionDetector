@@ -1,8 +1,10 @@
 module Collidable.BoundingBox exposing
     ( BoundingBox
+    , bottom
     , distance
     , fromTopLeft
     , intersects
+    , left
     , moveTo
     , pickBottomLeft
     , pickBottomRight
@@ -11,6 +13,8 @@ module Collidable.BoundingBox exposing
     , pickTopLeft
     , pickTopRight
     , pickWidth
+    , right
+    , top
     , view
     )
 
@@ -110,12 +114,12 @@ view attrs bb =
 
 topStyle : BoundingBox -> Html.Attribute msg
 topStyle =
-    pickTopLeft >> Point.getY >> String.fromFloat >> (\v -> v ++ "px") >> style "top"
+    top >> String.fromFloat >> (\v -> v ++ "px") >> style "top"
 
 
 leftStyle : BoundingBox -> Html.Attribute msg
 leftStyle =
-    pickTopLeft >> Point.getX >> String.fromFloat >> (\v -> v ++ "px") >> style "left"
+    left >> String.fromFloat >> (\v -> v ++ "px") >> style "left"
 
 
 heightStyle : BoundingBox -> Html.Attribute msg
@@ -130,40 +134,34 @@ widthStyle =
 
 xProjectionIntersects : BoundingBox -> BoundingBox -> Bool
 xProjectionIntersects b1 b2 =
-    let
-        x1Min =
-            b1 |> pickBottomLeft |> Point.getX
-
-        x1Max =
-            b1 |> pickBottomRight |> Point.getX
-
-        x2Min =
-            b2 |> pickBottomLeft |> Point.getX
-
-        x2Max =
-            b2 |> pickBottomRight |> Point.getX
-    in
-    x1Min < x2Max && x1Max > x2Min
+    left b1 <= right b2 && right b1 >= left b2
 
 
 yProjectionIntersects : BoundingBox -> BoundingBox -> Bool
 yProjectionIntersects b1 b2 =
-    let
-        y1Min =
-            b1 |> pickBottomLeft |> Point.getY
+    top b1 <= bottom b2 && bottom b1 >= top b2
 
-        y1Max =
-            b1 |> pickBottomRight |> Point.getY
 
-        y2Min =
-            b2 |> pickBottomLeft |> Point.getY
+top : BoundingBox -> Float
+top =
+    pickTopLeft >> Point.getY
 
-        y2Max =
-            b2 |> pickBottomRight |> Point.getY
-    in
-    y2Min < y1Max && y2Max > y1Min
+
+bottom : BoundingBox -> Float
+bottom =
+    pickBottomLeft >> Point.getY
+
+
+right : BoundingBox -> Float
+right =
+    pickBottomRight >> Point.getX
+
+
+left : BoundingBox -> Float
+left =
+    pickBottomLeft >> Point.getX
 
 
 intersects : BoundingBox -> BoundingBox -> Bool
 intersects b1 b2 =
-    xProjectionIntersects b1 b1 && yProjectionIntersects b1 b2
+    xProjectionIntersects b1 b2 && yProjectionIntersects b1 b2
