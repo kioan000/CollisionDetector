@@ -6,8 +6,9 @@ import Collidable as Collidable exposing (Collidable)
 import CollisionDetector as CollisionDetector exposing (CollisionDetector)
 import Html exposing (..)
 import Html.Attributes exposing (..)
-import Html.Events exposing (on)
+import Html.Events exposing (on, onClick)
 import Json.Decode as Json
+import Utils.Render as Render
 import Utils.Update as UtilsUpdate
 
 
@@ -15,14 +16,13 @@ type Msg
     = SquareCollision (Collidable Msg) (Collidable Msg)
     | CollisionDetectorMsg (CollisionDetector.Msg Msg)
     | CollisionDetectorError Dom.Error
+    | ToggleDebugView
 
 
 type alias Model =
     { collisionDetector : CollisionDetector Msg
     , message : String
-    , attrs : List (Html.Attribute Msg)
-    , x : Float
-    , y : Float
+    , isDebugEnabled : Bool
     }
 
 
@@ -33,9 +33,7 @@ initialModel =
             CollisionDetectorMsg
             CollisionDetectorError
     , message = ""
-    , attrs = []
-    , x = 0
-    , y = 0
+    , isDebugEnabled = False
     }
 
 
@@ -43,34 +41,46 @@ view : Model -> Document Msg
 view model =
     { title = "Example"
     , body =
-        [ div [ style "height" "100vh", style "overflow" "scroll", style "position" "relative" ]
+        [ div []
+            [ label [ for "debugCheckBox" ] [ text "Enable debug view" ]
+            , input [ type_ "checkbox", checked model.isDebugEnabled, onClick ToggleDebugView, name "debugCheckBox" ] []
+            ]
+        , div [ style "height" "100vh", style "overflow" "scroll", style "position" "relative", onScroll (CollisionDetector.tickEvent model.collisionDetector) ]
             [ div [ style "display" "flex", style "flex-flow" "column", style "min-height" "300vh", style "padding-top" "200px" ]
                 [ h1 [ style "position" "fixed", style "left" "0", style "top" "0" ] [ text model.message ]
                 , square1
-                , model.collisionDetector
-                    |> CollisionDetector.viewBoundingBox "square1"
                 , path "path1" []
-                , model.collisionDetector
-                    |> CollisionDetector.viewBoundingBox "path1"
                 , path "path2" []
-                , model.collisionDetector
-                    |> CollisionDetector.viewBoundingBox "path2"
-                , box2 model.attrs
-                , model.collisionDetector
-                    |> CollisionDetector.viewBoundingBox "square2"
+                , box2 []
                 , path "path3" []
-                , model.collisionDetector
-                    |> CollisionDetector.viewBoundingBox "path3"
                 , path "path4" []
-                , model.collisionDetector
-                    |> CollisionDetector.viewBoundingBox "path4"
                 , path "path5" []
-                , model.collisionDetector
-                    |> CollisionDetector.viewBoundingBox "path5"
                 ]
+            , debugView model
+                |> Render.when model.isDebugEnabled
             ]
         ]
     }
+
+
+debugView : Model -> Html Msg
+debugView model =
+    div []
+        [ model.collisionDetector
+            |> CollisionDetector.viewBoundingBox "square1"
+        , model.collisionDetector
+            |> CollisionDetector.viewBoundingBox "path1"
+        , model.collisionDetector
+            |> CollisionDetector.viewBoundingBox "path2"
+        , model.collisionDetector
+            |> CollisionDetector.viewBoundingBox "square2"
+        , model.collisionDetector
+            |> CollisionDetector.viewBoundingBox "path3"
+        , model.collisionDetector
+            |> CollisionDetector.viewBoundingBox "path4"
+        , model.collisionDetector
+            |> CollisionDetector.viewBoundingBox "path5"
+        ]
 
 
 onScroll : msg -> Attribute msg
@@ -126,8 +136,7 @@ path idValue attributes =
 subscriptions : Model -> Sub Msg
 subscriptions model =
     Sub.batch
-        [ CollisionDetector.tickOnAnimationFrame model.collisionDetector
-        ]
+        []
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -142,14 +151,25 @@ update msg model =
             model
                 |> CollisionDetector.update cdMsg
 
-        CollisionDetectorError error ->
+        CollisionDetectorError (Dom.NotFound error) ->
             model
+                |> setMessage ("Error not found: " ++ error)
+                |> UtilsUpdate.withoutCmds
+
+        ToggleDebugView ->
+            model
+                |> toggleIsDebugEnabled
                 |> UtilsUpdate.withoutCmds
 
 
 setMessage : String -> Model -> Model
 setMessage msg model =
     { model | message = msg }
+
+
+toggleIsDebugEnabled : Model -> Model
+toggleIsDebugEnabled model =
+    { model | isDebugEnabled = not model.isDebugEnabled }
 
 
 init : () -> ( Model, Cmd Msg )

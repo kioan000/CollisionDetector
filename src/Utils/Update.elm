@@ -1,9 +1,4 @@
-module Utils.Update exposing (addCmd, withCmds, withCmdsMap, withoutCmds)
-
-
-addCmd : Cmd msg -> ( model, Cmd msg ) -> ( model, Cmd msg )
-addCmd cmdToAdd ( model, cmds ) =
-    ( model, Cmd.batch [ cmds, cmdToAdd ] )
+module Utils.Update exposing (withCmds, withCmdsMap, withoutCmds)
 
 
 withCmds : List (Cmd msg) -> model -> ( model, Cmd msg )

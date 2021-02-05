@@ -16,9 +16,10 @@ import Collidable as Collidable exposing (Collidable)
 import Collidable.BoundingBox as BoundingBox
 import Collidable.Point as Point exposing (Point)
 import Dict exposing (Dict)
-import Html exposing (Html, text)
+import Html exposing (Html)
 import Task
 import Utils.Cmd as Cmd
+import Utils.Render as Render
 import Utils.Update as PH
 
 
@@ -222,8 +223,6 @@ getCollidable id (CollisionDetector { elementsThree }) =
 
 
 viewBoundingBox : String -> CollisionDetector msg -> Html msg
-viewBoundingBox id cd =
-    cd
-        |> getCollidable id
-        |> Maybe.map (Collidable.pickBoundingBox >> BoundingBox.view [])
-        |> Maybe.withDefault (text "")
+viewBoundingBox id =
+    getCollidable id
+        >> Render.maybeMap (Collidable.pickBoundingBox >> BoundingBox.view [])
