@@ -1,4 +1,4 @@
-module Utils.Maybe exposing (..)
+module Utils.Maybe exposing (isJust)
 
 
 isJust : Maybe a -> Bool

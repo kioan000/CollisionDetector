@@ -1,132 +1,231 @@
 module CollisionDetector exposing
     ( CollisionDetector
+    , Msg
     , addCollidable
-    , create
-    , cycle
-    , cycleWithCmds
-    , updateHeight
-    , updatePosition
-    , updateWidth
+    , collisionDetector
+    , getCollidable
+    , tickEvent
+    , tickOnAnimationFrame
+    , update
+    , viewBoundingBox
     )
 
-import Collidable exposing (Collidable)
+import Browser.Dom as Dom
+import Browser.Events as BrowserEvents
+import Collidable as Collidable exposing (Collidable)
+import Collidable.BoundingBox as BoundingBox
+import Collidable.Point as Point exposing (Point)
 import Dict exposing (Dict)
-import Utils.Maybe as UtilsMaybe
-import Utils.Update as UtilsUpdate
+import Html exposing (Html, text)
+import Task
+import Utils.Cmd as Cmd
+import Utils.Update as PH
 
 
-type CollisionDetector scope msg
-    = CollisionDetector (Config scope msg)
+type CollisionDetector msg
+    = CollisionDetector (CDConfig msg)
 
 
-type alias Config scope msg =
-    { collidables : Dict String (Collidable scope msg)
+type alias CDConfig msg =
+    { elementsThree : Dict String (Collidable msg)
+    , internalMsgTagger : Msg msg -> msg
+    , errorMsg : Dom.Error -> msg
     }
 
 
-cycle : CollisionDetector scope msg -> { model | collisionDetectorScope : scope } -> ( { model | collisionDetectorScope : scope }, Cmd msg )
-cycle collisionDetector model =
-    cycleWithCmds collisionDetector ( model, Cmd.none )
+type Msg msg
+    = ElementUpdated String Float Float Float Float
+    | AddElement String Float Float Float Float (Maybe (Collidable.CollisionEvent msg))
+    | Tick
 
 
-cycleWithCmds : CollisionDetector scope msg -> ( { model | collisionDetectorScope : scope }, Cmd msg ) -> ( { model | collisionDetectorScope : scope }, Cmd msg )
-cycleWithCmds config ( { collisionDetectorScope } as model, cmd ) =
-    config
-        |> pickConfig
-        |> .collidables
-        |> iterateCollisions ( collisionDetectorScope, cmd )
-        |> reWrapScope model
+{-| Use tick event to emit tick event on explicit moment (eg. on scroll).
+
+  - Don't use with tickOnAnimationFrame
+
+-}
+tickEvent : CollisionDetector msg -> msg
+tickEvent (CollisionDetector config) =
+    config.internalMsgTagger Tick
 
 
-reWrapScope : { model | collisionDetectorScope : scope } -> ( scope, Cmd msg ) -> ( { model | collisionDetectorScope : scope }, Cmd msg )
-reWrapScope model ( scope, cmds ) =
-    ( { model | collisionDetectorScope = scope }, cmds )
+type alias HostModel hostModel msg =
+    { hostModel | collisionDetector : CollisionDetector msg }
 
 
-create : CollisionDetector scope msg
-create =
+collisionDetector : (Msg msg -> msg) -> (Dom.Error -> msg) -> CollisionDetector msg
+collisionDetector internalMsgTagger errorMsg =
     CollisionDetector
-        { collidables = Dict.empty
+        { elementsThree = Dict.empty
+        , internalMsgTagger = internalMsgTagger
+        , errorMsg = errorMsg
         }
 
 
-addCollidable : Collidable scope msg -> CollisionDetector scope msg -> CollisionDetector scope msg
-addCollidable collidable (CollisionDetector config) =
-    CollisionDetector { config | collidables = Dict.insert (Collidable.pickId collidable) collidable config.collidables }
+insertCollidable : Collidable msg -> CollisionDetector msg -> CollisionDetector msg
+insertCollidable collidable (CollisionDetector config) =
+    CollisionDetector
+        { config
+            | elementsThree = Dict.insert (Collidable.pickId collidable) collidable config.elementsThree
+        }
 
 
-updatePosition : String -> Float -> Float -> CollisionDetector scope msg -> CollisionDetector scope msg
-updatePosition collidableId x y (CollisionDetector config) =
-    CollisionDetector { config | collidables = Dict.update collidableId (Maybe.map (Collidable.updatePosition x y)) config.collidables }
+{-| Add this subscription to your app if you want to emit tick event at 60fps accordingly with browser repaint cycle.
+
+  - Don't use with explicit tickEvent handling
+
+-}
+tickOnAnimationFrame : CollisionDetector msg -> Sub msg
+tickOnAnimationFrame =
+    tickEvent
+        >> always
+        >> BrowserEvents.onAnimationFrame
 
 
-updateHeight : String -> Float -> CollisionDetector scope msg -> CollisionDetector scope msg
-updateHeight collidableId height (CollisionDetector config) =
-    CollisionDetector { config | collidables = Dict.update collidableId (Maybe.map (Collidable.updateHeight height)) config.collidables }
+update : Msg msg -> HostModel hostModel msg -> ( HostModel hostModel msg, Cmd msg )
+update msg model =
+    case msg of
+        ElementUpdated id x y height width ->
+            model
+                |> updateHostModel (updatePosition id (Point.point x y) height width)
+                |> PH.withoutCmds
+
+        Tick ->
+            model
+                |> PH.withCmdsMap
+                    [ .collisionDetector
+                        >> pickCollidablesId
+                        >> List.map (\id -> trackCollidable id model.collisionDetector)
+                        >> Cmd.batch
+                    , .collisionDetector
+                        >> pickCollidables
+                        --> Debug.log "collidables: "
+                        >> findCollisions
+                        --> Debug.log "collisions: "
+                        >> List.map emitCollision
+                        >> Cmd.batch
+                    ]
+
+        AddElement id x y height width collisionHandler ->
+            model
+                |> updateHostModel (insertCollidable (Collidable.collidable id (Point.point x y) height width collisionHandler))
+                |> PH.withoutCmds
 
 
-updateWidth : String -> Float -> CollisionDetector scope msg -> CollisionDetector scope msg
-updateWidth collidableId width (CollisionDetector config) =
-    CollisionDetector { config | collidables = Dict.update collidableId (Maybe.map (Collidable.updateWidth width)) config.collidables }
+updatePosition : String -> Point -> Float -> Float -> CollisionDetector msg -> CollisionDetector msg
+updatePosition id topLeft height width (CollisionDetector config) =
+    CollisionDetector { config | elementsThree = Dict.update id (Maybe.map (Collidable.updateBoundingBox topLeft height width)) config.elementsThree }
 
 
-pickConfig : CollisionDetector scope msg -> Config scope msg
-pickConfig (CollisionDetector config) =
-    config
-
-
-iterateCollisions : ( scope, Cmd msg ) -> Dict String (Collidable scope msg) -> ( scope, Cmd msg )
-iterateCollisions ( scope, cmd ) collidables =
-    case Dict.values collidables of
-        -- We need at least 2 elements to verify collisions
+findCollisions : List (Collidable msg) -> List ( Collidable msg, Collidable msg )
+findCollisions cD =
+    case cD of
         x1 :: x2 :: xs ->
-            List.foldl
-                (collisionMapper x1)
-                ( scope, cmd )
-                (x2 :: xs)
-                |> processNext x2 xs
+            if Collidable.areCollided x1 x2 then
+                ( x1, x2 )
+                    :: List.append
+                        (findCollisions (x1 :: xs))
+                        (findCollisions (x2 :: xs))
+
+            else
+                List.append
+                    (findCollisions (x1 :: xs))
+                    (findCollisions (x2 :: xs))
 
         _ ->
-            ( scope, cmd )
+            []
 
 
-processNext : Collidable scope msg -> List (Collidable scope msg) -> ( scope, Cmd msg ) -> ( scope, Cmd msg )
-processNext collidable remaining ( scope, cmd ) =
-    case remaining of
-        x :: xs ->
-            List.foldl
-                (collisionMapper collidable)
-                ( scope, cmd )
-                remaining
-                |> processNext x xs
-
-        [] ->
-            ( scope, cmd )
+emitCollision : ( Collidable msg, Collidable msg ) -> Cmd msg
+emitCollision ( c1, c2 ) =
+    Cmd.batch
+        [ Collidable.pickCollisionEvent c1
+            |> Maybe.map (\cMsg -> cMsg c1 c2 |> Cmd.fromMsg)
+            |> Maybe.withDefault Cmd.none
+        , Collidable.pickCollisionEvent c2
+            |> Maybe.map (\cMsg -> cMsg c2 c1 |> Cmd.fromMsg)
+            |> Maybe.withDefault Cmd.none
+        ]
 
 
-collisionMapper : Collidable scope msg -> Collidable scope msg -> ( scope, Cmd msg ) -> ( scope, Cmd msg )
-collisionMapper collidable1 collidable2 ( scope, cmd ) =
-    if UtilsMaybe.isJust (Collidable.pickCollisionHandler collidable1) || UtilsMaybe.isJust (Collidable.pickCollisionHandler collidable2) then
-        if Collidable.areCollided collidable1 collidable2 then
-            ( scope, cmd )
-                |> collisionUpdater collidable1 collidable2
-                |> collisionUpdater collidable2 collidable1
-
-        else
-            ( scope, cmd )
-
-    else
-        ( scope, cmd )
+pickCollidables : CollisionDetector msg -> List (Collidable msg)
+pickCollidables (CollisionDetector config) =
+    Dict.values config.elementsThree
 
 
-collisionUpdater : Collidable scope msg -> Collidable scope msg -> ( scope, Cmd msg ) -> ( scope, Cmd msg )
-collisionUpdater collidable1 collidable2 ( scope, cmd ) =
-    collidable1
-        |> Collidable.pickCollisionHandler
-        |> Maybe.map
-            (\collisionHanlder ->
-                scope
-                    |> collisionHanlder collidable1 collidable2
-                    |> UtilsUpdate.addCmd cmd
-            )
-        |> Maybe.withDefault ( scope, cmd )
+pickCollidablesId : CollisionDetector msg -> List String
+pickCollidablesId (CollisionDetector config) =
+    Dict.keys config.elementsThree
+
+
+pickCollisionHandlers : CollisionDetector msg -> List (Collidable.CollisionEvent msg)
+pickCollisionHandlers =
+    pickCollidables >> List.map Collidable.pickCollisionEvent >> List.filterMap identity
+
+
+pickErrorMsg : CollisionDetector msg -> (Dom.Error -> msg)
+pickErrorMsg (CollisionDetector config) =
+    config.errorMsg
+
+
+pickInternalMsgTagger : CollisionDetector msg -> (Msg msg -> msg)
+pickInternalMsgTagger (CollisionDetector config) =
+    config.internalMsgTagger
+
+
+trackCollidable : String -> CollisionDetector msg -> Cmd msg
+trackCollidable collidableId cD =
+    Task.attempt
+        (updateElementOrError (pickInternalMsgTagger cD) (pickErrorMsg cD) collidableId)
+        (Dom.getElement collidableId)
+
+
+addCollidable : String -> Maybe (Collidable.CollisionEvent msg) -> CollisionDetector msg -> Cmd msg
+addCollidable collidableId collisionEvent cD =
+    Task.attempt
+        (addElementOrError collisionEvent (pickInternalMsgTagger cD) (pickErrorMsg cD) collidableId)
+        (Dom.getElement collidableId)
+
+
+updateElementOrError : (Msg msg -> msg) -> (Dom.Error -> msg) -> String -> Result Dom.Error Dom.Element -> msg
+updateElementOrError internalMsgTagger errorTagger id result =
+    case result of
+        Result.Ok element ->
+            ElementUpdated id element.element.x element.element.y element.element.height element.element.width
+                |> internalMsgTagger
+
+        Result.Err domNotFoundErr ->
+            domNotFoundErr
+                |> errorTagger
+
+
+addElementOrError : Maybe (Collidable.CollisionEvent msg) -> (Msg msg -> msg) -> (Dom.Error -> msg) -> String -> Result Dom.Error Dom.Element -> msg
+addElementOrError collisionEvent internalMsgTagger errorTagger id result =
+    case result of
+        Result.Ok element ->
+            AddElement id element.element.x element.element.y element.element.height element.element.width collisionEvent
+                |> internalMsgTagger
+
+        Result.Err domNotFoundErr ->
+            domNotFoundErr
+                |> errorTagger
+
+
+updateHostModel : (CollisionDetector msg -> CollisionDetector msg) -> HostModel model msg -> HostModel model msg
+updateHostModel cDMorph hM =
+    { hM
+        | collisionDetector = cDMorph hM.collisionDetector
+    }
+
+
+getCollidable : String -> CollisionDetector msg -> Maybe (Collidable msg)
+getCollidable id (CollisionDetector { elementsThree }) =
+    Dict.get id elementsThree
+
+
+viewBoundingBox : String -> CollisionDetector msg -> Html msg
+viewBoundingBox id cd =
+    cd
+        |> getCollidable id
+        |> Maybe.map (Collidable.pickBoundingBox >> BoundingBox.view [])
+        |> Maybe.withDefault (text "")

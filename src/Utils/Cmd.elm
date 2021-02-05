@@ -1,4 +1,4 @@
-module Utils.Cmd exposing (..)
+module Utils.Cmd exposing (fromMsg)
 
 import Task
 
