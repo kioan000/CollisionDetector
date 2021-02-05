@@ -99,9 +99,7 @@ update msg model =
                         >> Cmd.batch
                     , .collisionDetector
                         >> pickCollidables
-                        --> Debug.log "collidables: "
                         >> findCollisions
-                        --> Debug.log "collisions: "
                         >> List.map emitCollision
                         >> Cmd.batch
                     ]

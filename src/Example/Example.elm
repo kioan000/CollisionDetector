@@ -2,15 +2,12 @@ module Example.Example exposing (main)
 
 import Browser exposing (Document)
 import Browser.Dom as Dom
-import Browser.Events as BrowserEvents
 import Collidable as Collidable exposing (Collidable)
-import Collidable.BoundingBox as BoundingBox
 import CollisionDetector as CollisionDetector exposing (CollisionDetector)
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (on)
 import Json.Decode as Json
-import Task
 import Utils.Update as UtilsUpdate
 
 
@@ -46,7 +43,7 @@ view : Model -> Document Msg
 view model =
     { title = "Example"
     , body =
-        [ div [ style "height" "100vh", style "overflow" "scroll", style "position" "relative", onScroll (CollisionDetector.tickEvent model.collisionDetector) ]
+        [ div [ style "height" "100vh", style "overflow" "scroll", style "position" "relative" ]
             [ div [ style "display" "flex", style "flex-flow" "column", style "min-height" "300vh", style "padding-top" "200px" ]
                 [ h1 [ style "position" "fixed", style "left" "0", style "top" "0" ] [ text model.message ]
                 , square1
@@ -56,10 +53,20 @@ view model =
                 , model.collisionDetector
                     |> CollisionDetector.viewBoundingBox "path1"
                 , path "path2" []
+                , model.collisionDetector
+                    |> CollisionDetector.viewBoundingBox "path2"
                 , box2 model.attrs
+                , model.collisionDetector
+                    |> CollisionDetector.viewBoundingBox "square2"
                 , path "path3" []
+                , model.collisionDetector
+                    |> CollisionDetector.viewBoundingBox "path3"
                 , path "path4" []
+                , model.collisionDetector
+                    |> CollisionDetector.viewBoundingBox "path4"
                 , path "path5" []
+                , model.collisionDetector
+                    |> CollisionDetector.viewBoundingBox "path5"
                 ]
             ]
         ]
@@ -118,7 +125,9 @@ path idValue attributes =
 
 subscriptions : Model -> Sub Msg
 subscriptions model =
-    Sub.batch []
+    Sub.batch
+        [ CollisionDetector.tickOnAnimationFrame model.collisionDetector
+        ]
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )

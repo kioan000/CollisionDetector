@@ -112,24 +112,29 @@ view attrs bb =
         []
 
 
+floatToPx : Float -> String
+floatToPx =
+    String.fromFloat >> (\v -> v ++ "px")
+
+
 topStyle : BoundingBox -> Html.Attribute msg
 topStyle =
-    top >> String.fromFloat >> (\v -> v ++ "px") >> style "top"
+    top >> floatToPx >> style "top"
 
 
 leftStyle : BoundingBox -> Html.Attribute msg
 leftStyle =
-    left >> String.fromFloat >> (\v -> v ++ "px") >> style "left"
+    left >> floatToPx >> style "left"
 
 
 heightStyle : BoundingBox -> Html.Attribute msg
 heightStyle =
-    pickHeight >> (+) -2 >> String.fromFloat >> (\v -> v ++ "px") >> style "height"
+    pickHeight >> (+) -2 >> floatToPx >> style "height"
 
 
 widthStyle : BoundingBox -> Html.Attribute msg
 widthStyle =
-    pickWidth >> (+) -1 >> String.fromFloat >> (\v -> v ++ "px") >> style "width"
+    pickWidth >> (+) -1 >> floatToPx >> style "width"
 
 
 xProjectionIntersects : BoundingBox -> BoundingBox -> Bool
@@ -149,12 +154,12 @@ top =
 
 bottom : BoundingBox -> Float
 bottom =
-    pickBottomLeft >> Point.getY
+    pickBottomRight >> Point.getY
 
 
 right : BoundingBox -> Float
 right =
-    pickBottomRight >> Point.getX
+    pickTopRight >> Point.getX
 
 
 left : BoundingBox -> Float
