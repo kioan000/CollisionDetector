@@ -3,15 +3,20 @@ module CollisionDetector exposing
     , Msg
     , addCollidable
     , collisionDetector
+    , getCollidable
     , tickEvent
     , tickOnAnimationFrame
     , update
+    , viewBoundingBox
     )
 
 import Browser.Dom as Dom
 import Browser.Events as BrowserEvents
 import Collidable as Collidable exposing (Collidable)
+import Collidable.BoundingBox as BoundingBox
+import Collidable.Point as Point exposing (Point)
 import Dict exposing (Dict)
+import Html exposing (Html, text)
 import Task
 import Utils.Cmd as Cmd
 import Utils.Update as PH
@@ -29,7 +34,7 @@ type alias CDConfig msg =
 
 
 type Msg msg
-    = ElementUpdated String Float Float
+    = ElementUpdated String Float Float Float Float
     | AddElement String Float Float Float Float (Maybe (Collidable.CollisionEvent msg))
     | Tick
 
@@ -80,9 +85,9 @@ tickOnAnimationFrame =
 update : Msg msg -> HostModel hostModel msg -> ( HostModel hostModel msg, Cmd msg )
 update msg model =
     case msg of
-        ElementUpdated id x y ->
+        ElementUpdated id x y height width ->
             model
-                |> updateHostModel (updatePosition id x y)
+                |> updateHostModel (updatePosition id (Point.point x y) height width)
                 |> PH.withoutCmds
 
         Tick ->
@@ -94,22 +99,22 @@ update msg model =
                         >> Cmd.batch
                     , .collisionDetector
                         >> pickCollidables
-                        -->> Debug.log "collidables: "
+                        --> Debug.log "collidables: "
                         >> findCollisions
-                        -->> Debug.log "collisions: "
+                        --> Debug.log "collisions: "
                         >> List.map emitCollision
                         >> Cmd.batch
                     ]
 
         AddElement id x y height width collisionHandler ->
             model
-                |> updateHostModel (insertCollidable (Collidable.collidable id x y height width collisionHandler))
+                |> updateHostModel (insertCollidable (Collidable.collidable id (Point.point x y) height width collisionHandler))
                 |> PH.withoutCmds
 
 
-updatePosition : String -> Float -> Float -> CollisionDetector msg -> CollisionDetector msg
-updatePosition id x y (CollisionDetector config) =
-    CollisionDetector { config | elementsThree = Dict.update id (Maybe.map (Collidable.setPosition x y)) config.elementsThree }
+updatePosition : String -> Point -> Float -> Float -> CollisionDetector msg -> CollisionDetector msg
+updatePosition id topLeft height width (CollisionDetector config) =
+    CollisionDetector { config | elementsThree = Dict.update id (Maybe.map (Collidable.updateBoundingBox topLeft height width)) config.elementsThree }
 
 
 findCollisions : List (Collidable msg) -> List ( Collidable msg, Collidable msg )
@@ -186,7 +191,7 @@ updateElementOrError : (Msg msg -> msg) -> (Dom.Error -> msg) -> String -> Resul
 updateElementOrError internalMsgTagger errorTagger id result =
     case result of
         Result.Ok element ->
-            ElementUpdated id element.element.x element.element.y
+            ElementUpdated id element.element.x element.element.y element.element.height element.element.width
                 |> internalMsgTagger
 
         Result.Err domNotFoundErr ->
@@ -211,3 +216,16 @@ updateHostModel cDMorph hM =
     { hM
         | collisionDetector = cDMorph hM.collisionDetector
     }
+
+
+getCollidable : String -> CollisionDetector msg -> Maybe (Collidable msg)
+getCollidable id (CollisionDetector { elementsThree }) =
+    Dict.get id elementsThree
+
+
+viewBoundingBox : String -> CollisionDetector msg -> Html msg
+viewBoundingBox id cd =
+    cd
+        |> getCollidable id
+        |> Maybe.map (Collidable.pickBoundingBox >> BoundingBox.view [])
+        |> Maybe.withDefault (text "")

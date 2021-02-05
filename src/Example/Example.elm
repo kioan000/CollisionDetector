@@ -2,12 +2,15 @@ module Example.Example exposing (main)
 
 import Browser exposing (Document)
 import Browser.Dom as Dom
+import Browser.Events as BrowserEvents
 import Collidable as Collidable exposing (Collidable)
+import Collidable.BoundingBox as BoundingBox
 import CollisionDetector as CollisionDetector exposing (CollisionDetector)
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (on)
 import Json.Decode as Json
+import Task
 import Utils.Update as UtilsUpdate
 
 
@@ -15,12 +18,16 @@ type Msg
     = SquareCollision (Collidable Msg) (Collidable Msg)
     | CollisionDetectorMsg (CollisionDetector.Msg Msg)
     | CollisionDetectorError Dom.Error
+    | Track (Result Dom.Error Dom.Element)
+    | Tick
 
 
 type alias Model =
     { collisionDetector : CollisionDetector Msg
     , message : String
     , attrs : List (Html.Attribute Msg)
+    , x : Float
+    , y : Float
     }
 
 
@@ -32,6 +39,8 @@ initialModel =
             CollisionDetectorError
     , message = ""
     , attrs = []
+    , x = 0
+    , y = 0
     }
 
 
@@ -39,11 +48,17 @@ view : Model -> Document Msg
 view model =
     { title = "Example"
     , body =
-        [ div [ style "height" "100vh", style "overflow" "scroll", style "position" "relative", onScroll (CollisionDetector.tickEvent model.collisionDetector) ]
+        [ div [ style "height" "100vh", style "overflow" "scroll", style "position" "relative", onScroll Tick ]
             [ div [ style "display" "flex", style "flex-flow" "column", style "min-height" "300vh", style "padding-top" "200px" ]
                 [ h1 [ style "position" "fixed", style "left" "0", style "top" "0" ] [ text model.message ]
                 , square1
+
+                --, model.collisionDetector
+                --  |> CollisionDetector.viewBoundingBox "square1"
                 , path "path1" []
+
+                --, model.collisionDetector
+                -- |> CollisionDetector.viewBoundingBox "path1"
                 , path "path2" []
                 , box2 model.attrs
                 , path "path3" []
@@ -123,7 +138,24 @@ update msg model =
                 |> CollisionDetector.update cdMsg
 
         CollisionDetectorError error ->
-            model |> UtilsUpdate.withoutCmds
+            model
+                |> UtilsUpdate.withoutCmds
+
+        Track (Result.Err _) ->
+            model
+                |> setMessage "Error"
+                |> UtilsUpdate.withoutCmds
+
+        Track (Result.Ok element) ->
+            model
+                |> setMessage ("(x,y): (" ++ String.fromFloat element.element.x ++ "," ++ String.fromFloat element.element.y ++ ")")
+                |> UtilsUpdate.withoutCmds
+
+        Tick ->
+            model
+                |> UtilsUpdate.withCmds
+                    [ Task.attempt Track (Dom.getElement "square1")
+                    ]
 
 
 setMessage : String -> Model -> Model
@@ -134,14 +166,15 @@ setMessage msg model =
 init : () -> ( Model, Cmd Msg )
 init _ =
     initialModel
-        |> UtilsUpdate.withCmdsMap
-            [ .collisionDetector >> CollisionDetector.addCollidable "square1" (Just SquareCollision)
-            , .collisionDetector >> CollisionDetector.addCollidable "path1" Nothing
-            , .collisionDetector >> CollisionDetector.addCollidable "path2" Nothing
-            , .collisionDetector >> CollisionDetector.addCollidable "square2" Nothing
-            , .collisionDetector >> CollisionDetector.addCollidable "path3" Nothing
-            , .collisionDetector >> CollisionDetector.addCollidable "path4" Nothing
-            , .collisionDetector >> CollisionDetector.addCollidable "path5" Nothing
+        |> UtilsUpdate.withCmds
+            [ --.collisionDetector >> CollisionDetector.addCollidable "square1" Nothing
+              --, .collisionDetector >> CollisionDetector.addCollidable "path1" Nothing
+              --, .collisionDetector >> CollisionDetector.addCollidable "path2" Nothing
+              --, .collisionDetector >> CollisionDetector.addCollidable "square2" Nothing
+              --, .collisionDetector >> CollisionDetector.addCollidable "path3" Nothing
+              --, .collisionDetector >> CollisionDetector.addCollidable "path4" Nothing
+              --, .collisionDetector >> CollisionDetector.addCollidable "path5" Nothing
+              Task.attempt Track (Dom.getElement "square1")
             ]
 
 
