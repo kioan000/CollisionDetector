@@ -36,7 +36,7 @@ type alias CDConfig msg =
 
 type Msg msg
     = ElementUpdated String Dom.Element
-    | AddElement String Dom.Element (Maybe (Collidable.CollisionEvent msg))
+    | AddElement Dom.Element (Collidable msg)
     | Tick
 
 
@@ -105,9 +105,9 @@ update msg model =
                         >> Cmd.batch
                     ]
 
-        AddElement id element collisionHandler ->
+        AddElement element collidable ->
             model
-                |> updateHostModel (insertCollidable (Collidable.collidable id (Point.point element.element.x element.element.y) element.element.height element.element.width collisionHandler))
+                |> updateHostModel (insertCollidable (Collidable.track (Point.point element.element.x element.element.y) element.element.height element.element.width collidable))
                 |> PH.withoutCmds
 
 
@@ -179,11 +179,11 @@ trackCollidable collidableId cD =
         (Dom.getElement collidableId)
 
 
-addCollidable : String -> Maybe (Collidable.CollisionEvent msg) -> CollisionDetector msg -> Cmd msg
-addCollidable collidableId collisionEvent cD =
+addCollidable : Collidable msg -> CollisionDetector msg -> Cmd msg
+addCollidable collidable cD =
     Task.attempt
-        (addElementOrError collisionEvent (pickInternalMsgTagger cD) (pickErrorMsg cD) collidableId)
-        (Dom.getElement collidableId)
+        (addElementOrError (pickInternalMsgTagger cD) (pickErrorMsg cD) collidable)
+        (Dom.getElement (Collidable.pickId collidable))
 
 
 updateElementOrError : (Msg msg -> msg) -> (Dom.Error -> msg) -> String -> Result Dom.Error Dom.Element -> msg
@@ -198,11 +198,11 @@ updateElementOrError internalMsgTagger errorTagger id result =
                 |> errorTagger
 
 
-addElementOrError : Maybe (Collidable.CollisionEvent msg) -> (Msg msg -> msg) -> (Dom.Error -> msg) -> String -> Result Dom.Error Dom.Element -> msg
-addElementOrError collisionEvent internalMsgTagger errorTagger id result =
+addElementOrError : (Msg msg -> msg) -> (Dom.Error -> msg) -> Collidable msg -> Result Dom.Error Dom.Element -> msg
+addElementOrError internalMsgTagger errorTagger collidable result =
     case result of
         Result.Ok element ->
-            AddElement id element collisionEvent
+            AddElement element collidable
                 |> internalMsgTagger
 
         Result.Err domNotFoundErr ->
@@ -225,4 +225,5 @@ getCollidable id (CollisionDetector { elementsThree }) =
 viewBoundingBox : String -> CollisionDetector msg -> Html msg
 viewBoundingBox id =
     getCollidable id
-        >> Render.maybeMap (Collidable.pickBoundingBox >> BoundingBox.view [])
+        >> Maybe.andThen Collidable.pickBoundingBox
+        >> Render.maybeMap (BoundingBox.view [])
